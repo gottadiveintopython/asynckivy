@@ -172,3 +172,9 @@ class Semaphore:
 
     async def __aexit__(self, exc_type, exc, tb):
         self.release()
+
+    def __enter__(self):
+        self.acquire_nowait()
+
+    def __exit__(self, exc_type, exc, tb):
+        self.release()
