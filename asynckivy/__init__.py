@@ -1,3 +1,4 @@
+from ._exceptions import *
 from ._core import *
 from ._sleep import *
 from ._event import *
