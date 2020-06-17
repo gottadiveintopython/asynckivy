@@ -1,11 +1,13 @@
 '''Everything in this module doesn't depend on Kivy.'''
 
-__all__ = ('start', 'or_', 'and_', 'Event', )
+__all__ = ('start', 'or_', 'and_', 'Event', 'Semaphore', )
 
 import types
 import typing
 from inspect import getcoroutinestate, CORO_CLOSED
+from collections import deque
 
+from ._exceptions import WouldBlock
 
 def start(coro):
     '''Starts a asynckivy-flavored coroutine.
@@ -111,3 +113,62 @@ class Event:
 def _get_step_coro():
     '''(internal)'''
     return (yield lambda step_coro: step_coro(step_coro))[0][0]
+
+
+class Semaphore:
+    '''Equivalent of `trio.Semaphore` '''
+
+    __slots__ = ('_value', '_max_value', '_coros', )
+
+    def __init__(self, max:int):
+        if not isinstance(max, int):
+            raise TypeError("max must be an int")
+        self._value = max
+        self._max_value = max
+        self._coros = deque()
+
+    def __repr__(self):
+        return "<asynckivy.Semaphore({}, max_value={}) at {:#x}>".format(
+            self._value, self._max_value, id(self)
+        )
+
+    @property
+    def value(self):
+        return self._value
+
+    @property
+    def max_value(self):
+        return self._max_value
+
+    @property
+    def can_acquire_nowait(self) -> bool:
+        return self._value > 0
+
+    def acquire_nowait(self):
+        if self._value > 0:
+            self._value -= 1
+        else:
+            raise WouldBlock
+
+    @types.coroutine
+    def acquire(self):
+        if self._value > 0:
+            self._value -= 1
+            yield (lambda step_coro: step_coro())
+        else:
+            yield self._coros.append
+
+    def release(self):
+        if self._value == self._max_value:
+            raise ValueError("semaphore released too many times")
+        coros = self._coros
+        if coros:
+            coros.popleft()()
+        else:
+            self._value += 1
+
+    async def __aenter__(self):
+        await self.acquire()
+
+    async def __aexit__(self, exc_type, exc, tb):
+        self.release()
