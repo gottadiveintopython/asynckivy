@@ -122,7 +122,9 @@ class Semaphore:
 
     def __init__(self, max:int):
         if not isinstance(max, int):
-            raise TypeError("max must be an int")
+            raise TypeError("'max' must be an int")
+        if max < 0:
+            raise ValueError(f"'max' must be zero or greater. (got {max})")
         self._value = max
         self._max_value = max
         self._coros = deque()

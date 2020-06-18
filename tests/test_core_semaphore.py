@@ -1,6 +1,17 @@
 import pytest
 
 
+def test_invalid_argument():
+    import asynckivy as ak
+
+    with pytest.raises(TypeError):
+        ak.Semaphore('hello')
+    with pytest.raises(TypeError):
+        ak.Semaphore(0.)
+    with pytest.raises(ValueError):
+        ak.Semaphore(-1)
+
+
 def test_can_acquire_nowait():
     import asynckivy as ak
 
